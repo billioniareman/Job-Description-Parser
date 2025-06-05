@@ -1,7 +1,5 @@
 fastapi
 uvicorn
 pymongo
-bson
-pymongo
 python-multipart
 psycopg2
