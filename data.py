@@ -8,40 +8,49 @@ def jaccard_similarity(list1, list2):
     union = len(set1 | set2)
     return intersection / union if union != 0 else 0
 
-def recommend_engineers(input_client, input_skills, developers, top_n=5, w_client=0.7, w_skill=0.3):
-    reccommendations = []
-    input_skills_set = set(s.lower().strip() for s in input_skills if s)
-    input_client_set = set(c.lower().strip() for c in input_client if c)
+def recommend_engineers(input_client, input_skills, developers, top_n=5, w_client=0.3, w_skill=0.7):
+    recommendations = []
+    input_skills_set = set(s.strip().lower() for s in input_skills if s)
+    input_client_set = set(c.strip().lower() for c in input_client if c)
 
     for dev in developers:
-        dev_clients = [c.lower().strip() for c in dev.get('clients', []) if c]
-        dev_skills = [s.lower().strip() for s in dev.get('skills', []) if s]
+        dev_clients = [c.strip().lower() for c in dev.get('clients', []) if c]
+        dev_skills = [s.strip().lower() for s in dev.get('skills', []) if s]
         client_sim = jaccard_similarity(input_client_set, dev_clients)
         skill_sim = jaccard_similarity(input_skills_set, dev_skills)
         matched_clients = list(input_client_set & set(dev_clients))
         matched_skills = list(input_skills_set & set(dev_skills))
         skill_match_percentage = (len(matched_skills) / len(input_skills_set) * 100) if input_skills_set else 0
 
-        reccommendations.append({
+        # Optionally, boost score if all skills match
+        full_skill_match = 1 if skill_match_percentage == 100 else 0
+
+        recommendations.append({
             'engineer_id': dev.get('engineer_id'),
             'engineer_name': dev.get('engineer_name'),
-            'score': round((w_client * client_sim) + (w_skill * skill_sim), 2),
+            'score': round((w_client * client_sim) + (w_skill * skill_sim) + full_skill_match, 2),
             'matched_clients': matched_clients,
             'matched_skills': matched_skills,
             'experience': dev.get('experience', 0),
             'engineer_email': dev.get('engineer_email', ''),
             'skill_match_percentage': round(skill_match_percentage, 2),
         })
-    return sorted(reccommendations, key=lambda x: x['score'], reverse=True)[:top_n]
+
+    # Sort by score, then by skill match percentage, then by experience
+    return sorted(
+        recommendations,
+        key=lambda x: (x['score'], x['skill_match_percentage'], x['experience']),
+        reverse=True
+    )[:top_n]
 
 
 def recommend_tma(input_client, input_skills, engineers, top_n=3, w_client=0.7, w_skill=0.3):
     recommendations = []
-    input_skills_set = set(s.lower().strip() for s in input_skills if s)
-    input_client_set = set(c.lower().strip() for c in input_client if c)
+    input_skills_set = set(s.strip() for s in input_skills if s)
+    input_client_set = set(c.strip() for c in input_client if c)
     for eng in engineers:
-        eng_clients = [c.lower().strip() for c in eng.get('clients', []) if c]
-        eng_skills = [s.lower().strip() for s in eng.get('skills', []) if s]
+        eng_clients = [c.strip() for c in eng.get('clients', []) if c]
+        eng_skills = [s.strip() for s in eng.get('skills', []) if s]
         client_sim = jaccard_similarity(input_client_set, eng_clients)
         skill_sim = jaccard_similarity(input_skills_set, eng_skills)
         matched_clients = list(input_client_set & set(eng_clients))
